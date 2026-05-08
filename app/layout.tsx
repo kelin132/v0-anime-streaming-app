@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'CineMind - Stream & Download Anime, Movies & Series',
+  title: 'Xinverse - Stream & Download Anime, Movies & Series',
   description: 'Browse anime, movies and series. View trailers, synopses, filter by genre/year, and find where to watch on streaming services like Crunchyroll, Netflix, and HiDive.',
   generator: 'v0.app',
   keywords: ['anime', 'movies', 'series', 'streaming', 'download', 'crunchyroll', 'netflix', 'hidive'],
