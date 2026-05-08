@@ -14,20 +14,35 @@ import {
   Clock,
   Film,
   Tv,
-  ExternalLink,
   Loader2,
   Share2,
   ChevronLeft,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getItemDetails, getRecommendations, type MediaItem } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  getItemDetails,
+  getRecommendations,
+  getMediaStreaming,
+  type MediaItem,
+  type Caption,
+  type DownloadLink,
+} from "@/lib/api";
 import { useUserStore } from "@/lib/store";
 import { MediaCarousel } from "@/components/media-carousel";
 import { EpisodeSelector } from "@/components/episode-selector";
 import { DownloadModal } from "@/components/download-modal";
 import { RatingStars } from "@/components/rating-stars";
 import { StreamingLinks } from "@/components/streaming-links";
+import { VideoPlayer } from "@/components/video-player";
 
 interface WatchPageProps {
   params: Promise<{ id: string }>;
@@ -36,9 +51,15 @@ interface WatchPageProps {
 function WatchContent({ params }: WatchPageProps) {
   const { id } = use(params);
   const searchParams = useSearchParams();
-  const type = parseInt(searchParams.get("type") || "1");
+  const type = parseInt(searchParams.get("type") || "2");
 
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [isWatching, setIsWatching] = useState(false);
+  const [selectedSeason, setSelectedSeason] = useState(1);
+  const [selectedEpisode, setSelectedEpisode] = useState(1);
+  const [streamingSources, setStreamingSources] = useState<DownloadLink[]>([]);
+  const [captions, setCaptions] = useState<Caption[]>([]);
+  const [loadingStream, setLoadingStream] = useState(false);
 
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, getRating } =
     useUserStore();
@@ -78,6 +99,50 @@ function WatchContent({ params }: WatchPageProps) {
     }
   };
 
+  const handleWatch = async (season?: number, episode?: number) => {
+    if (!item) return;
+    setLoadingStream(true);
+
+    const targetSeason = season ?? selectedSeason;
+    const targetEpisode = episode ?? selectedEpisode;
+
+    try {
+      const mediaData = await getMediaStreaming(
+        item.id,
+        item.detailPath || "",
+        item.type === 2 ? targetSeason : undefined,
+        item.type === 2 ? targetEpisode : undefined
+      );
+
+      if (mediaData.downloads.length > 0) {
+        setStreamingSources(mediaData.downloads);
+        setCaptions(mediaData.captions);
+        setSelectedSeason(targetSeason);
+        setSelectedEpisode(targetEpisode);
+        setIsWatching(true);
+      } else {
+        alert("No streaming sources available. Try downloading instead.");
+      }
+    } catch (error) {
+      console.error("Failed to load stream:", error);
+      alert("Failed to load streaming. Please try again.");
+    } finally {
+      setLoadingStream(false);
+    }
+  };
+
+  const handleDownloadFromPlayer = (link: DownloadLink) => {
+    if (link.downloadUrl) {
+      window.open(link.downloadUrl, "_blank");
+    } else if (link.url) {
+      window.open(link.url, "_blank");
+    }
+  };
+
+  const currentSeason = item?.seasons?.find(
+    (s) => s.seasonNumber === selectedSeason
+  );
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -105,6 +170,112 @@ function WatchContent({ params }: WatchPageProps) {
   const isSeries = item.type === 2;
   const TypeIcon = isSeries ? Tv : Film;
 
+  // Video Player View
+  if (isWatching && streamingSources.length > 0) {
+    return (
+      <div className="min-h-screen bg-black">
+        <VideoPlayer
+          sources={streamingSources.map((s) => ({
+            resolution: s.resolution || parseInt(s.quality) || 720,
+            streamUrl: s.streamUrl || s.url,
+          }))}
+          captions={captions}
+          title={
+            isSeries
+              ? `${item.title} - S${selectedSeason}E${selectedEpisode}`
+              : item.title
+          }
+          poster={item.backdrop || item.poster}
+          onBack={() => setIsWatching(false)}
+        />
+
+        {/* Episode Navigation for Series */}
+        {isSeries && currentSeason && (
+          <div className="bg-background p-4 sm:p-6">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex flex-wrap items-center gap-4 mb-4">
+                <h3 className="text-lg font-semibold text-foreground">
+                  Season {selectedSeason}
+                </h3>
+                <Select
+                  value={selectedSeason.toString()}
+                  onValueChange={(val) => {
+                    setSelectedSeason(parseInt(val));
+                    setSelectedEpisode(1);
+                  }}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {item.seasons?.map((season) => (
+                      <SelectItem
+                        key={season.seasonNumber}
+                        value={season.seasonNumber.toString()}
+                      >
+                        Season {season.seasonNumber}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                {currentSeason.episodes.map((episode) => (
+                  <button
+                    key={episode.id}
+                    onClick={() =>
+                      handleWatch(selectedSeason, episode.episodeNumber)
+                    }
+                    disabled={loadingStream}
+                    className={`p-3 rounded-lg text-sm font-medium transition-colors ${
+                      episode.episodeNumber === selectedEpisode
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary hover:bg-secondary/80 text-foreground"
+                    }`}
+                  >
+                    {loadingStream &&
+                    episode.episodeNumber === selectedEpisode ? (
+                      <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                    ) : (
+                      `EP ${episode.episodeNumber}`
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Download Options */}
+        <div className="bg-card border-t border-border p-4 sm:p-6">
+          <div className="max-w-7xl mx-auto">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
+              Download This{" "}
+              {isSeries
+                ? `Episode (S${selectedSeason}E${selectedEpisode})`
+                : "Movie"}
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {streamingSources.map((source, idx) => (
+                <Button
+                  key={idx}
+                  variant="outline"
+                  onClick={() => handleDownloadFromPlayer(source)}
+                  className="gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  {source.quality} ({source.size})
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Details View
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -180,7 +351,8 @@ function WatchContent({ params }: WatchPageProps) {
                 {isSeries && item.seasons && (
                   <div className="flex items-center gap-1 text-muted-foreground text-sm">
                     <Clock className="w-4 h-4" />
-                    {item.seasons.length} Season{item.seasons.length !== 1 ? "s" : ""}
+                    {item.seasons.length} Season
+                    {item.seasons.length !== 1 ? "s" : ""}
                   </div>
                 )}
               </div>
@@ -213,9 +385,19 @@ function WatchContent({ params }: WatchPageProps) {
                 </p>
               )}
 
+              {/* Available Subtitles */}
+              {item.subtitles && (
+                <p className="text-sm text-muted-foreground">
+                  <span className="text-foreground font-medium">Subtitles:</span>{" "}
+                  {item.subtitles}
+                </p>
+              )}
+
               {/* User Rating */}
               <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">Your Rating:</span>
+                <span className="text-sm text-muted-foreground">
+                  Your Rating:
+                </span>
                 <RatingStars itemId={item.id} itemTitle={item.title} />
                 {userRating && (
                   <span className="text-sm text-primary">{userRating}/5</span>
@@ -224,11 +406,29 @@ function WatchContent({ params }: WatchPageProps) {
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-3 pt-4">
+                <Button
+                  size="lg"
+                  className="gap-2"
+                  onClick={() => handleWatch()}
+                  disabled={loadingStream}
+                >
+                  {loadingStream ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Play className="w-5 h-5 fill-current" />
+                  )}
+                  {isSeries ? "Watch S1 E1" : "Watch Now"}
+                </Button>
+
                 {item.trailer && (
-                  <a href={item.trailer} target="_blank" rel="noopener noreferrer">
-                    <Button size="lg" className="gap-2">
-                      <Play className="w-5 h-5 fill-current" />
-                      Watch Trailer
+                  <a
+                    href={item.trailer}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button size="lg" variant="secondary" className="gap-2">
+                      <Play className="w-5 h-5" />
+                      Trailer
                     </Button>
                   </a>
                 )}
@@ -267,6 +467,41 @@ function WatchContent({ params }: WatchPageProps) {
                   Share
                 </Button>
               </div>
+
+              {/* Cast */}
+              {item.cast && item.cast.length > 0 && (
+                <div className="pt-4">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                    Cast
+                  </h3>
+                  <div className="flex gap-4 overflow-x-auto pb-2">
+                    {item.cast.map((member, idx) => (
+                      <div key={idx} className="flex-shrink-0 text-center w-16">
+                        <div className="relative w-14 h-14 mx-auto mb-1.5 rounded-full overflow-hidden bg-secondary">
+                          {member.avatar ? (
+                            <Image
+                              src={member.avatar}
+                              alt={member.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-lg text-muted-foreground">
+                              {member.name[0]}
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs font-medium text-foreground truncate">
+                          {member.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {member.character}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -274,7 +509,10 @@ function WatchContent({ params }: WatchPageProps) {
 
       {/* Tabs Section */}
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue={isSeries ? "episodes" : "streaming"} className="space-y-6">
+        <Tabs
+          defaultValue={isSeries ? "episodes" : "streaming"}
+          className="space-y-6"
+        >
           <TabsList className="bg-secondary">
             {isSeries && <TabsTrigger value="episodes">Episodes</TabsTrigger>}
             <TabsTrigger value="streaming">Where to Watch</TabsTrigger>
@@ -289,7 +527,12 @@ function WatchContent({ params }: WatchPageProps) {
                   seasons={item.seasons}
                   title={item.title}
                   mediaId={item.id}
+                  detailPath={item.detailPath || ""}
                   downloadLinks={item.downloadLinks}
+                  onPlayEpisode={(season, episode) =>
+                    handleWatch(season, episode)
+                  }
+                  isLoadingStream={loadingStream}
                 />
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
@@ -302,7 +545,10 @@ function WatchContent({ params }: WatchPageProps) {
 
           {/* Streaming Tab */}
           <TabsContent value="streaming" className="space-y-6">
-            <StreamingLinks services={item.streamingServices} title={item.title} />
+            <StreamingLinks
+              services={item.streamingServices}
+              title={item.title}
+            />
           </TabsContent>
 
           {/* Details Tab */}
@@ -323,6 +569,14 @@ function WatchContent({ params }: WatchPageProps) {
                     Release Year
                   </h4>
                   <p>{item.year}</p>
+                </div>
+              )}
+              {item.country && (
+                <div className="p-4 rounded-lg bg-card border border-border">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                    Country
+                  </h4>
+                  <p>{item.country}</p>
                 </div>
               )}
               {item.rating && item.rating > 0 && (
@@ -374,7 +628,9 @@ function WatchContent({ params }: WatchPageProps) {
         onClose={() => setDownloadModalOpen(false)}
         title={item.title}
         mediaId={item.id}
-        type="movie"
+        detailPath={item.detailPath || ""}
+        type={isSeries ? "episode" : "movie"}
+        seasons={item.seasons}
         downloadLinks={item.downloadLinks || []}
       />
     </div>
