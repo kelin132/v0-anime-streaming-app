@@ -161,7 +161,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-center sm:text-left">
-              <h3 className="font-bold text-lg">CineMind</h3>
+              <h3 className="font-bold text-lg">Xinverse</h3>
               <p className="text-sm text-muted-foreground">
                 Your ultimate destination for anime, movies &amp; series
               </p>

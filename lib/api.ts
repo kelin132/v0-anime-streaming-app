@@ -1,6 +1,20 @@
 const API_KEY = "Godszeal";
 const BASE_URL = "https://api.cinemind.name.ng/api";
 
+// Fetch with caching
+const fetchWithCache = async (url: string, cacheTime = 300000) => {
+  const res = await fetch(url, {
+    next: { revalidate: cacheTime / 1000 },
+  });
+  return res.json();
+};
+
+export interface CastMember {
+  name: string;
+  character: string;
+  avatar: string;
+}
+
 export interface MediaItem {
   id: string;
   title: string;
@@ -19,11 +33,13 @@ export interface MediaItem {
   country?: string;
   subtitles?: string;
   detailPath?: string;
+  cast?: CastMember[];
 }
 
 export interface Season {
   seasonNumber: number;
   episodes: Episode[];
+  resolutions?: number[];
 }
 
 export interface Episode {
@@ -40,6 +56,28 @@ export interface DownloadLink {
   quality: string;
   size: string;
   url: string;
+  streamUrl?: string;
+  downloadUrl?: string;
+  resolution?: number;
+}
+
+export interface Caption {
+  id: string;
+  lan: string;
+  lanName: string;
+  url: string;
+  size?: string;
+}
+
+export interface MediaData {
+  downloads: DownloadLink[];
+  captions: Caption[];
+}
+
+export interface SeasonInfo {
+  seasonNumber: number;
+  maxEpisodes: number;
+  resolutions: number[];
 }
 
 export interface StreamingService {
@@ -213,69 +251,89 @@ export async function searchMedia(
   }
 }
 
-export async function getItemDetails(id: string, type: number): Promise<MediaItem | null> {
+export async function getItemDetails(id: string, type?: number): Promise<MediaItem | null> {
   try {
-    const res = await fetch(`${BASE_URL}/item-details?apikey=${API_KEY}&id=${id}&type=${type}`);
+    // Try with subjectId parameter first (correct API format)
+    let url = `${BASE_URL}/item-details?apikey=${API_KEY}&subjectId=${id}`;
+    if (type !== undefined) {
+      url += `&type=${type}`;
+    }
+    
+    const res = await fetch(url);
     const data = await res.json();
-    const item = data.data || data;
     
-    const mediaItem = transformMediaItem(item);
-    if (!mediaItem) return null;
-    
-    // Parse seasons and episodes for series
-    if (type === 2 && (item.seasons || item.episodeVo || item.episodeList)) {
-      const seasons: Season[] = [];
-      const episodeData = item.seasons || item.episodeVo || item.episodeList || [];
-      
-      if (Array.isArray(episodeData)) {
-        // Group episodes by season if not already grouped
-        const episodesBySeason: Map<number, Episode[]> = new Map();
-        
-        episodeData.forEach((ep: any, idx: number) => {
-          const seasonNum = ep.seasonNumber || ep.season || 1;
-          const episode: Episode = {
-            id: ep.id?.toString() || ep.episodeId?.toString() || `${id}-s${seasonNum}-e${idx + 1}`,
-            episodeNumber: ep.episodeNumber || ep.seriesNo || ep.episode || idx + 1,
-            seasonNumber: seasonNum,
-            title: ep.title || ep.name || `Episode ${idx + 1}`,
-            synopsis: ep.synopsis || ep.introduction || ep.description || "",
-            thumbnail: ep.thumbnail || ep.coverHorizontalUrl || ep.cover?.url || "",
-            downloadLinks: parseDownloadLinks(ep.definitions || ep.downloads || ep.qualities || []),
-          };
-          
-          if (!episodesBySeason.has(seasonNum)) {
-            episodesBySeason.set(seasonNum, []);
-          }
-          episodesBySeason.get(seasonNum)!.push(episode);
-        });
-        
-        // Convert map to seasons array
-        episodesBySeason.forEach((episodes, seasonNum) => {
-          seasons.push({
-            seasonNumber: seasonNum,
-            episodes: episodes.sort((a, b) => a.episodeNumber - b.episodeNumber),
-          });
-        });
-        
-        seasons.sort((a, b) => a.seasonNumber - b.seasonNumber);
-      }
-      
-      mediaItem.seasons = seasons;
+    if (data.status === "error") {
+      // Fallback to old format
+      const fallbackRes = await fetch(`${BASE_URL}/item-details?apikey=${API_KEY}&id=${id}&type=${type || 2}`);
+      const fallbackData = await fallbackRes.json();
+      if (fallbackData.status === "error") return null;
+      return processItemDetails(fallbackData, id, type || 2);
     }
     
-    // Parse download links for movies
-    if (type === 1) {
-      mediaItem.downloadLinks = parseDownloadLinks(item.definitions || item.downloads || item.downloadLinks || item.qualities || []);
-    }
-    
-    // Add streaming services
-    mediaItem.streamingServices = getStreamingServices(mediaItem.title);
-    
-    return mediaItem;
+    return processItemDetails(data, id, type || data.data?.subject?.subjectType || 2);
   } catch (error) {
     console.error("Failed to fetch item details:", error);
     return null;
   }
+}
+
+function processItemDetails(data: any, id: string, type: number): MediaItem | null {
+  const apiData = data.data || data;
+  const subject = apiData.subject || apiData;
+  const resource = apiData.resource || {};
+  
+  const mediaItem = transformMediaItem(subject);
+  if (!mediaItem) return null;
+  
+  // Store detailPath for streaming API
+  mediaItem.detailPath = subject.detailPath || "";
+  
+  // Parse trailer
+  if (subject.trailer?.videoAddress?.url) {
+    mediaItem.trailer = subject.trailer.videoAddress.url;
+  }
+  
+  // Parse seasons from resource data for series
+  if (type === 2 && resource.seasons && Array.isArray(resource.seasons)) {
+    const seasons: Season[] = resource.seasons.map((s: any) => {
+      const episodes: Episode[] = [];
+      const maxEp = s.maxEp || 1;
+      
+      for (let i = 1; i <= maxEp; i++) {
+        episodes.push({
+          id: `${id}-s${s.se}-e${i}`,
+          episodeNumber: i,
+          seasonNumber: s.se,
+          title: `Episode ${i}`,
+          synopsis: "",
+          thumbnail: "",
+          downloadLinks: [],
+        });
+      }
+      
+      return {
+        seasonNumber: s.se,
+        episodes,
+        resolutions: (s.resolutions || []).map((r: any) => r.resolution),
+      };
+    });
+    
+    mediaItem.seasons = seasons.sort((a, b) => a.seasonNumber - b.seasonNumber);
+  }
+  
+  // Add streaming services
+  mediaItem.streamingServices = getStreamingServices(mediaItem.title);
+  
+  // Add cast info
+  if (apiData.stars && Array.isArray(apiData.stars)) {
+    mediaItem.cast = apiData.stars.slice(0, 10).map((star: any) => ({
+      name: star.name || "",
+      character: star.character || "",
+      avatar: star.avatarUrl || "",
+    }));
+  }
+  
+  return mediaItem;
 }
 
 export async function getMediaDownloads(id?: string): Promise<DownloadLink[]> {
@@ -290,6 +348,55 @@ export async function getMediaDownloads(id?: string): Promise<DownloadLink[]> {
     console.error("Failed to fetch downloads:", error);
     return [];
   }
+}
+
+export async function getMediaStreaming(
+  subjectId: string,
+  detailPath: string,
+  season?: number,
+  episode?: number
+): Promise<MediaData> {
+  try {
+    let url = `${BASE_URL}/media?apikey=${API_KEY}&subjectId=${subjectId}&detailPath=${detailPath}`;
+    if (season !== undefined) url += `&season=${season}`;
+    if (episode !== undefined) url += `&episode=${episode}`;
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    const downloadsData = data.data?.downloads?.data?.downloads || [];
+    const captionsData = data.data?.downloads?.data?.captions || data.data?.subtitles?.data?.captions || [];
+    
+    const downloads: DownloadLink[] = downloadsData.map((d: any) => ({
+      quality: `${d.resolution}p`,
+      size: formatFileSize(parseInt(d.size) || 0),
+      url: d.url || "",
+      streamUrl: d.streamUrl || "",
+      downloadUrl: d.downloadUrl || "",
+      resolution: d.resolution || 0,
+    }));
+    
+    const captions: Caption[] = captionsData.map((c: any) => ({
+      id: c.id || "",
+      lan: c.lan || "",
+      lanName: c.lanName || c.lan || "",
+      url: c.url || "",
+      size: c.size || "",
+    }));
+    
+    return { downloads, captions };
+  } catch (error) {
+    console.error("Failed to fetch media streaming:", error);
+    return { downloads: [], captions: [] };
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "Unknown";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
 
 export async function getRecommendations(id: string, type: number): Promise<MediaItem[]> {

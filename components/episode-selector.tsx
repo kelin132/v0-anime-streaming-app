@@ -9,6 +9,7 @@ import {
   Check,
   Tv,
   ListVideo,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,20 +26,35 @@ interface EpisodeSelectorProps {
   seasons: Season[];
   title: string;
   mediaId: string;
+  detailPath: string;
   downloadLinks?: DownloadLink[];
+  onPlayEpisode?: (season: number, episode: number) => void;
+  isLoadingStream?: boolean;
 }
 
 export function EpisodeSelector({
   seasons,
   title,
   mediaId,
+  detailPath,
+  poster,
   downloadLinks = [],
+  onPlayEpisode,
+  isLoadingStream = false,
 }: EpisodeSelectorProps) {
-  const [selectedSeason, setSelectedSeason] = useState(seasons[0]?.seasonNumber || 1);
-  const [selectedEpisodes, setSelectedEpisodes] = useState<Set<string>>(new Set());
+  const [selectedSeason, setSelectedSeason] = useState(
+    seasons[0]?.seasonNumber || 1
+  );
+  const [selectedEpisodes, setSelectedEpisodes] = useState<Set<string>>(
+    new Set()
+  );
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [downloadType, setDownloadType] = useState<"single" | "bulk">("single");
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
+  const [playingEpisode, setPlayingEpisode] = useState<{
+    season: number;
+    episode: number;
+  } | null>(null);
 
   const currentSeason = seasons.find((s) => s.seasonNumber === selectedSeason);
   const episodes = currentSeason?.episodes || [];
@@ -72,6 +88,16 @@ export function EpisodeSelector({
     setDownloadModalOpen(true);
   };
 
+  const handlePlayEpisode = (episode: Episode) => {
+    if (onPlayEpisode) {
+      setPlayingEpisode({
+        season: selectedSeason,
+        episode: episode.episodeNumber,
+      });
+      onPlayEpisode(selectedSeason, episode.episodeNumber);
+    }
+  };
+
   const selectedEpisodesForDownload = episodes.filter((ep) =>
     selectedEpisodes.has(ep.id)
   );
@@ -103,7 +129,11 @@ export function EpisodeSelector({
                   {selectedSeason === season.seasonNumber && (
                     <Check className="w-4 h-4 text-primary" />
                   )}
-                  <span className={selectedSeason !== season.seasonNumber ? "ml-6" : ""}>
+                  <span
+                    className={
+                      selectedSeason !== season.seasonNumber ? "ml-6" : ""
+                    }
+                  >
                     Season {season.seasonNumber}
                   </span>
                   <span className="ml-auto text-xs text-muted-foreground">
@@ -117,23 +147,36 @@ export function EpisodeSelector({
           <span className="text-sm text-muted-foreground">
             {episodes.length} Episodes
           </span>
+
+          {currentSeason?.resolutions && currentSeason.resolutions.length > 0 && (
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded">
+              Up to {Math.max(...currentSeason.resolutions)}p
+            </span>
+          )}
         </div>
 
         {/* Bulk Actions */}
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={handleSelectAll}
-            className="gap-2"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md hover:bg-secondary transition-colors"
           >
-            <Checkbox
-              checked={episodes.length > 0 && selectedEpisodes.size === episodes.length}
-              className="pointer-events-none"
-            />
-            {selectedEpisodes.size === episodes.length ? "Deselect All" : "Select All"}
-          </Button>
-          
+            <div
+              className={`w-4 h-4 border rounded flex items-center justify-center ${
+                episodes.length > 0 && selectedEpisodes.size === episodes.length
+                  ? "bg-primary border-primary"
+                  : "border-input"
+              }`}
+            >
+              {episodes.length > 0 && selectedEpisodes.size === episodes.length && (
+                <Check className="w-3 h-3 text-primary-foreground" />
+              )}
+            </div>
+            {selectedEpisodes.size === episodes.length
+              ? "Deselect All"
+              : "Select All"}
+          </button>
+
           {selectedEpisodes.size > 0 && (
             <Button onClick={handleBulkDownload} className="gap-2">
               <Download className="w-4 h-4" />
@@ -145,73 +188,102 @@ export function EpisodeSelector({
 
       {/* Episodes Grid */}
       <div className="grid gap-3">
-        {episodes.map((episode) => (
-          <div
-            key={episode.id}
-            className={`group flex gap-4 p-3 rounded-lg border transition-all ${
-              selectedEpisodes.has(episode.id)
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-primary/50 hover:bg-secondary/30"
-            }`}
-          >
-            {/* Checkbox */}
-            <div className="flex items-center">
-              <Checkbox
-                checked={selectedEpisodes.has(episode.id)}
-                onCheckedChange={() => handleEpisodeSelect(episode.id)}
-              />
-            </div>
+        {episodes.map((episode) => {
+          const isCurrentlyPlaying =
+            isLoadingStream &&
+            playingEpisode?.season === selectedSeason &&
+            playingEpisode?.episode === episode.episodeNumber;
 
-            {/* Thumbnail */}
-            <div className="relative w-32 sm:w-40 aspect-video rounded-md overflow-hidden shrink-0 bg-secondary">
-              {episode.thumbnail ? (
-                <Image
-                  src={episode.thumbnail}
-                  alt={episode.title}
-                  fill
-                  className="object-cover"
-                  sizes="160px"
+          return (
+            <div
+              key={episode.id}
+              className={`group flex gap-4 p-3 rounded-lg border transition-all ${
+                selectedEpisodes.has(episode.id)
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50 hover:bg-secondary/30"
+              }`}
+            >
+              {/* Checkbox */}
+              <div className="flex items-center">
+                <Checkbox
+                  checked={selectedEpisodes.has(episode.id)}
+                  onCheckedChange={() => handleEpisodeSelect(episode.id)}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Tv className="w-8 h-8 text-muted-foreground" />
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <Play className="w-8 h-8 text-white fill-white" />
               </div>
-            </div>
 
-            {/* Episode Info */}
-            <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium">
-                  E{episode.episodeNumber}
-                </span>
-                <h4 className="font-medium text-sm sm:text-base truncate">
-                  {episode.title}
-                </h4>
-              </div>
-              {episode.synopsis && (
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
-                  {episode.synopsis}
-                </p>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-9 h-9"
-                onClick={() => handleSingleDownload(episode)}
+              {/* Thumbnail */}
+              <button
+                onClick={() => handlePlayEpisode(episode)}
+                disabled={isLoadingStream}
+                className="relative w-32 sm:w-40 aspect-video rounded-md overflow-hidden shrink-0 bg-secondary cursor-pointer"
               >
-                <Download className="w-4 h-4" />
-              </Button>
+                {(episode.thumbnail || poster) ? (
+                  <Image
+                    src={episode.thumbnail || poster || ""}
+                    alt={episode.title}
+                    fill
+                    className="object-cover"
+                    sizes="160px"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Tv className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {isCurrentlyPlaying ? (
+                    <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  ) : (
+                    <Play className="w-8 h-8 text-white fill-white" />
+                  )}
+                </div>
+              </button>
+
+              {/* Episode Info */}
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium">
+                    E{episode.episodeNumber}
+                  </span>
+                  <h4 className="font-medium text-sm sm:text-base truncate">
+                    {episode.title}
+                  </h4>
+                </div>
+                {episode.synopsis && (
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
+                    {episode.synopsis}
+                  </p>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1 hidden sm:flex"
+                  onClick={() => handlePlayEpisode(episode)}
+                  disabled={isLoadingStream}
+                >
+                  {isCurrentlyPlaying ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                  Play
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-9 h-9"
+                  onClick={() => handleSingleDownload(episode)}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Download Modal */}
@@ -223,13 +295,17 @@ export function EpisodeSelector({
         }}
         title={title}
         mediaId={mediaId}
+        detailPath={detailPath}
         type="episode"
+        seasons={seasons}
         downloadLinks={
           downloadType === "single" && currentEpisode
             ? currentEpisode.downloadLinks || downloadLinks
             : downloadLinks
         }
-        episodes={downloadType === "bulk" ? selectedEpisodesForDownload : undefined}
+        episodes={
+          downloadType === "bulk" ? selectedEpisodesForDownload : undefined
+        }
         seasonNumber={
           downloadType === "single" && currentEpisode
             ? currentEpisode.seasonNumber || selectedSeason

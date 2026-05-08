@@ -61,7 +61,7 @@ export function HeroBanner({ items, isLoading }: HeroBannerProps) {
     return (
       <div className="relative h-[60vh] sm:h-[70vh] bg-gradient-to-br from-secondary to-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Welcome to CineMind</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Welcome to Xinverse</h1>
           <p className="text-muted-foreground">Discover your next favorite anime, movie, or series</p>
         </div>
       </div>
