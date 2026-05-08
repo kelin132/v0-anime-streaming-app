@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -24,14 +25,17 @@ export function Header() {
   const router = useRouter();
   const { watchlist, downloadQueue } = useUserStore();
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery("");
-      setIsMenuOpen(false);
-    }
-  };
+  const handleSearch = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (searchQuery.trim()) {
+        router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        setSearchQuery("");
+        setIsMenuOpen(false);
+      }
+    },
+    [searchQuery, router]
+  );
 
   const navLinks = [
     { href: "/", label: "Home", icon: Home },
@@ -46,10 +50,19 @@ export function Header() {
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Film className="w-5 h-5 text-primary-foreground" />
+            <div className="w-9 h-9 rounded-lg overflow-hidden relative bg-primary">
+              <Image
+                src="/logo.jpg"
+                alt="Xinverse"
+                fill
+                className="object-cover"
+                priority
+                sizes="36px"
+              />
             </div>
-            <span className="font-bold text-xl hidden sm:block">Xinverse</span>
+            <span className="font-bold text-xl hidden sm:block bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Xinverse
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -109,7 +122,11 @@ export function Header() {
               className="md:hidden"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
             </Button>
           </div>
         </div>
@@ -138,7 +155,10 @@ export function Header() {
                   href={link.href}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <Button variant="ghost" className="w-full justify-start gap-2">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2"
+                  >
                     <link.icon className="w-4 h-4" />
                     {link.label}
                   </Button>

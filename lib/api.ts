@@ -1,6 +1,14 @@
 const API_KEY = "Godszeal";
 const BASE_URL = "https://api.cinemind.name.ng/api";
 
+// Fetch with caching
+const fetchWithCache = async (url: string, cacheTime = 300000) => {
+  const res = await fetch(url, {
+    next: { revalidate: cacheTime / 1000 },
+  });
+  return res.json();
+};
+
 export interface CastMember {
   name: string;
   character: string;

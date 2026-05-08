@@ -37,6 +37,7 @@ export function EpisodeSelector({
   title,
   mediaId,
   detailPath,
+  poster,
   downloadLinks = [],
   onPlayEpisode,
   isLoadingStream = false,
@@ -216,9 +217,9 @@ export function EpisodeSelector({
                 disabled={isLoadingStream}
                 className="relative w-32 sm:w-40 aspect-video rounded-md overflow-hidden shrink-0 bg-secondary cursor-pointer"
               >
-                {episode.thumbnail ? (
+                {(episode.thumbnail || poster) ? (
                   <Image
-                    src={episode.thumbnail}
+                    src={episode.thumbnail || poster || ""}
                     alt={episode.title}
                     fill
                     className="object-cover"

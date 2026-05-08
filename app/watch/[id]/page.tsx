@@ -526,6 +526,7 @@ function WatchContent({ params }: WatchPageProps) {
                   title={item.title}
                   mediaId={item.id}
                   detailPath={item.detailPath || ""}
+                  poster={item.backdrop || item.poster}
                   downloadLinks={item.downloadLinks}
                   onPlayEpisode={(season, episode) =>
                     handleWatch(season, episode)
