@@ -41,7 +41,6 @@ import { MediaCarousel } from "@/components/media-carousel";
 import { EpisodeSelector } from "@/components/episode-selector";
 import { DownloadModal } from "@/components/download-modal";
 import { RatingStars } from "@/components/rating-stars";
-import { StreamingLinks } from "@/components/streaming-links";
 import { VideoPlayer } from "@/components/video-player";
 
 interface WatchPageProps {
@@ -510,12 +509,11 @@ function WatchContent({ params }: WatchPageProps) {
       {/* Tabs Section */}
       <div className="container mx-auto px-4 py-8">
         <Tabs
-          defaultValue={isSeries ? "episodes" : "streaming"}
+          defaultValue={isSeries ? "episodes" : "details"}
           className="space-y-6"
         >
           <TabsList className="bg-secondary">
             {isSeries && <TabsTrigger value="episodes">Episodes</TabsTrigger>}
-            <TabsTrigger value="streaming">Where to Watch</TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
           </TabsList>
 
@@ -542,14 +540,6 @@ function WatchContent({ params }: WatchPageProps) {
               )}
             </TabsContent>
           )}
-
-          {/* Streaming Tab */}
-          <TabsContent value="streaming" className="space-y-6">
-            <StreamingLinks
-              services={item.streamingServices}
-              title={item.title}
-            />
-          </TabsContent>
 
           {/* Details Tab */}
           <TabsContent value="details" className="space-y-6">
