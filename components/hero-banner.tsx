@@ -10,9 +10,10 @@ import type { MediaItem } from "@/lib/api";
 
 interface HeroBannerProps {
   items: MediaItem[];
+  isLoading?: boolean;
 }
 
-export function HeroBanner({ items }: HeroBannerProps) {
+export function HeroBanner({ items, isLoading }: HeroBannerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useUserStore();
 
@@ -43,6 +44,18 @@ export function HeroBanner({ items }: HeroBannerProps) {
       addToWatchlist(currentItem);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="relative h-[60vh] sm:h-[70vh] bg-gradient-to-br from-secondary to-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-primary/20 animate-pulse mx-auto" />
+          <div className="h-8 w-64 bg-secondary rounded animate-pulse mx-auto" />
+          <div className="h-4 w-48 bg-secondary/60 rounded animate-pulse mx-auto" />
+        </div>
+      </div>
+    );
+  }
 
   if (!items || items.length === 0 || !currentItem) {
     return (

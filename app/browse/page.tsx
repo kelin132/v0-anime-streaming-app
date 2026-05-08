@@ -94,7 +94,9 @@ function BrowseContent() {
 
   // Combine and filter items
   useEffect(() => {
-    const items = [...(trendingData || []), ...(hotData || [])];
+    const hotMovies = hotData?.movies || [];
+    const hotSeries = hotData?.series || [];
+    const items = [...(trendingData || []), ...hotMovies, ...hotSeries];
     
     // Remove duplicates
     const uniqueItems = items.reduce((acc: MediaItem[], item) => {

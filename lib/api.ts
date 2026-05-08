@@ -16,6 +16,9 @@ export interface MediaItem {
   episodes?: Episode[];
   downloadLinks?: DownloadLink[];
   streamingServices?: StreamingService[];
+  country?: string;
+  subtitles?: string;
+  detailPath?: string;
 }
 
 export interface Season {
@@ -50,6 +53,16 @@ export interface HomepageData {
   trending: MediaItem[];
   newReleases: MediaItem[];
   topRated: MediaItem[];
+  banners: BannerItem[];
+}
+
+export interface BannerItem {
+  id: string;
+  title: string;
+  image: string;
+  subjectId: string;
+  subjectType: number;
+  subject?: MediaItem;
 }
 
 export interface SearchResult {
@@ -60,17 +73,24 @@ export interface SearchResult {
 
 // Transform API response to our MediaItem format
 function transformMediaItem(item: any): MediaItem {
+  if (!item) return null as any;
+  
+  const cover = item.cover || {};
+  
   return {
-    id: item.id?.toString() || item.subjectId?.toString() || "",
+    id: item.subjectId?.toString() || item.id?.toString() || "",
     title: item.title || item.name || item.subjectTitle || "",
-    poster: item.poster || item.coverVerticalUrl || item.image || "",
-    backdrop: item.backdrop || item.coverHorizontalUrl || "",
-    year: item.year || item.releaseYear?.toString() || "",
-    rating: item.rating || item.score || 0,
-    type: item.type || item.subjectType || 1,
-    genre: item.genres || item.tagList || [],
-    synopsis: item.synopsis || item.overview || item.description || "",
-    trailer: item.trailer || item.trailerUrl || "",
+    poster: cover.url || item.coverVerticalUrl || item.poster || item.image || "",
+    backdrop: item.backdrop || item.coverHorizontalUrl || cover.url || "",
+    year: item.releaseDate?.split("-")[0] || item.year || "",
+    rating: parseFloat(item.imdbRatingValue) || item.rating || item.score || 0,
+    type: item.subjectType || item.type || 1,
+    genre: item.genre?.split(",").map((g: string) => g.trim()) || item.genres || [],
+    synopsis: item.description || item.synopsis || item.overview || "",
+    trailer: item.trailer?.url || item.trailerUrl || "",
+    country: item.countryName || "",
+    subtitles: item.subtitles || "",
+    detailPath: item.detailPath || "",
   };
 }
 
@@ -79,40 +99,68 @@ export async function getHomepage(): Promise<HomepageData> {
     const res = await fetch(`${BASE_URL}/homepage?apikey=${API_KEY}`);
     const data = await res.json();
     
-    const sections = data.data || data.sections || data || [];
+    const apiData = data.data || {};
+    const operatingList = apiData.operatingList || [];
     
-    // Parse different sections from the homepage response
     const featured: MediaItem[] = [];
     const trending: MediaItem[] = [];
     const newReleases: MediaItem[] = [];
     const topRated: MediaItem[] = [];
+    const banners: BannerItem[] = [];
 
-    if (Array.isArray(sections)) {
-      sections.forEach((section: any) => {
-        const items = (section.items || section.data || []).map(transformMediaItem);
-        const sectionName = (section.title || section.name || "").toLowerCase();
+    // Parse operating list (contains different sections)
+    operatingList.forEach((section: any) => {
+      const sectionType = section.type?.toLowerCase() || "";
+      const sectionTitle = (section.title || "").toLowerCase();
+      
+      // Parse banner items
+      if (sectionType === "banner" && section.banner?.items) {
+        section.banner.items.forEach((bannerItem: any) => {
+          banners.push({
+            id: bannerItem.id || "",
+            title: bannerItem.title || "",
+            image: bannerItem.image?.url || "",
+            subjectId: bannerItem.subjectId || "",
+            subjectType: bannerItem.subjectType || 2,
+            subject: bannerItem.subject ? transformMediaItem(bannerItem.subject) : undefined,
+          });
+          
+          // Also add banner subjects to featured
+          if (bannerItem.subject) {
+            featured.push(transformMediaItem(bannerItem.subject));
+          }
+        });
+      }
+      
+      // Parse subject lists
+      if (section.subjects && Array.isArray(section.subjects)) {
+        const items = section.subjects.map(transformMediaItem).filter(Boolean);
         
-        if (sectionName.includes("featured") || sectionName.includes("banner")) {
-          featured.push(...items);
-        } else if (sectionName.includes("trending") || sectionName.includes("popular")) {
+        if (sectionTitle.includes("trending") || sectionTitle.includes("popular")) {
           trending.push(...items);
-        } else if (sectionName.includes("new") || sectionName.includes("latest")) {
+        } else if (sectionTitle.includes("new") || sectionTitle.includes("latest")) {
           newReleases.push(...items);
-        } else if (sectionName.includes("top") || sectionName.includes("rated")) {
+        } else if (sectionTitle.includes("top") || sectionTitle.includes("rated")) {
           topRated.push(...items);
         } else {
-          // Distribute remaining items
-          if (featured.length < 5) featured.push(...items.slice(0, 5 - featured.length));
-          else if (trending.length < 20) trending.push(...items.slice(0, 20 - trending.length));
+          // Add to appropriate category based on current count
+          if (featured.length < 10) featured.push(...items);
+          else if (trending.length < 20) trending.push(...items);
           else newReleases.push(...items);
         }
-      });
+      }
+    });
+
+    // Parse top picks
+    if (apiData.topPickList && Array.isArray(apiData.topPickList)) {
+      const topPicks = apiData.topPickList.map(transformMediaItem).filter(Boolean);
+      topRated.push(...topPicks);
     }
 
-    return { featured, trending, newReleases, topRated };
+    return { featured, trending, newReleases, topRated, banners };
   } catch (error) {
     console.error("Failed to fetch homepage:", error);
-    return { featured: [], trending: [], newReleases: [], topRated: [] };
+    return { featured: [], trending: [], newReleases: [], topRated: [], banners: [] };
   }
 }
 
@@ -120,8 +168,16 @@ export async function getTrending(type: string = "all", page: number = 1): Promi
   try {
     const res = await fetch(`${BASE_URL}/trending?apikey=${API_KEY}&type=${type}&page=${page}`);
     const data = await res.json();
-    const items = data.data || data.items || data.results || [];
-    return items.map(transformMediaItem);
+    
+    // API returns data.subjectList
+    const subjectList = data.data?.subjectList || [];
+    
+    if (!Array.isArray(subjectList)) {
+      console.error("Trending subjectList is not an array:", typeof subjectList);
+      return [];
+    }
+    
+    return subjectList.map(transformMediaItem).filter(Boolean);
   } catch (error) {
     console.error("Failed to fetch trending:", error);
     return [];
@@ -139,10 +195,16 @@ export async function searchMedia(
       `${BASE_URL}/search?apikey=${API_KEY}&query=${encodeURIComponent(query)}&subjectType=${subjectType}&page=${page}&perPage=${perPage}`
     );
     const data = await res.json();
-    const items = (data.data || data.items || data.results || []).map(transformMediaItem);
+    
+    // API returns data.subjectList for search results
+    const subjectList = data.data?.subjectList || data.data || [];
+    const items = Array.isArray(subjectList) 
+      ? subjectList.map(transformMediaItem).filter(Boolean)
+      : [];
+    
     return {
       items,
-      totalPages: data.totalPages || data.total_pages || Math.ceil((data.total || items.length) / perPage),
+      totalPages: data.totalPages || data.data?.totalPages || Math.ceil((data.total || items.length) / perPage),
       currentPage: page,
     };
   } catch (error) {
@@ -158,29 +220,44 @@ export async function getItemDetails(id: string, type: number): Promise<MediaIte
     const item = data.data || data;
     
     const mediaItem = transformMediaItem(item);
+    if (!mediaItem) return null;
     
     // Parse seasons and episodes for series
-    if (type === 2 && (item.seasons || item.episodeVo)) {
+    if (type === 2 && (item.seasons || item.episodeVo || item.episodeList)) {
       const seasons: Season[] = [];
-      const episodeData = item.seasons || item.episodeVo || [];
+      const episodeData = item.seasons || item.episodeVo || item.episodeList || [];
       
       if (Array.isArray(episodeData)) {
-        episodeData.forEach((season: any, idx: number) => {
-          const episodes = (season.episodes || season.episodeList || [season]).map((ep: any, epIdx: number) => ({
-            id: ep.id?.toString() || `${id}-s${idx + 1}-e${epIdx + 1}`,
-            episodeNumber: ep.episodeNumber || ep.seriesNo || epIdx + 1,
-            seasonNumber: season.seasonNumber || idx + 1,
-            title: ep.title || ep.name || `Episode ${epIdx + 1}`,
-            synopsis: ep.synopsis || ep.introduction || "",
-            thumbnail: ep.thumbnail || ep.coverHorizontalUrl || "",
-            downloadLinks: parseDownloadLinks(ep.definitions || ep.downloads || []),
-          }));
+        // Group episodes by season if not already grouped
+        const episodesBySeason: Map<number, Episode[]> = new Map();
+        
+        episodeData.forEach((ep: any, idx: number) => {
+          const seasonNum = ep.seasonNumber || ep.season || 1;
+          const episode: Episode = {
+            id: ep.id?.toString() || ep.episodeId?.toString() || `${id}-s${seasonNum}-e${idx + 1}`,
+            episodeNumber: ep.episodeNumber || ep.seriesNo || ep.episode || idx + 1,
+            seasonNumber: seasonNum,
+            title: ep.title || ep.name || `Episode ${idx + 1}`,
+            synopsis: ep.synopsis || ep.introduction || ep.description || "",
+            thumbnail: ep.thumbnail || ep.coverHorizontalUrl || ep.cover?.url || "",
+            downloadLinks: parseDownloadLinks(ep.definitions || ep.downloads || ep.qualities || []),
+          };
           
+          if (!episodesBySeason.has(seasonNum)) {
+            episodesBySeason.set(seasonNum, []);
+          }
+          episodesBySeason.get(seasonNum)!.push(episode);
+        });
+        
+        // Convert map to seasons array
+        episodesBySeason.forEach((episodes, seasonNum) => {
           seasons.push({
-            seasonNumber: season.seasonNumber || idx + 1,
-            episodes,
+            seasonNumber: seasonNum,
+            episodes: episodes.sort((a, b) => a.episodeNumber - b.episodeNumber),
           });
         });
+        
+        seasons.sort((a, b) => a.seasonNumber - b.seasonNumber);
       }
       
       mediaItem.seasons = seasons;
@@ -188,7 +265,7 @@ export async function getItemDetails(id: string, type: number): Promise<MediaIte
     
     // Parse download links for movies
     if (type === 1) {
-      mediaItem.downloadLinks = parseDownloadLinks(item.definitions || item.downloads || item.downloadLinks || []);
+      mediaItem.downloadLinks = parseDownloadLinks(item.definitions || item.downloads || item.downloadLinks || item.qualities || []);
     }
     
     // Add streaming services
@@ -219,23 +296,40 @@ export async function getRecommendations(id: string, type: number): Promise<Medi
   try {
     const res = await fetch(`${BASE_URL}/recommendations?apikey=${API_KEY}&id=${id}&type=${type}`);
     const data = await res.json();
-    const items = data.data || data.items || data.results || [];
-    return items.map(transformMediaItem);
+    
+    const subjectList = data.data?.subjectList || data.data || [];
+    
+    if (!Array.isArray(subjectList)) {
+      return [];
+    }
+    
+    return subjectList.map(transformMediaItem).filter(Boolean);
   } catch (error) {
     console.error("Failed to fetch recommendations:", error);
     return [];
   }
 }
 
-export async function getHotMoviesSeries(): Promise<MediaItem[]> {
+export async function getHotMoviesSeries(): Promise<{ movies: MediaItem[]; series: MediaItem[] }> {
   try {
     const res = await fetch(`${BASE_URL}/hot-movies-series?apikey=${API_KEY}`);
     const data = await res.json();
-    const items = data.data || data.items || data.results || [];
-    return items.map(transformMediaItem);
+    
+    // API returns data.movie and data.series as arrays
+    const moviesData = data.data?.movie || [];
+    const seriesData = data.data?.series || [];
+    
+    const movies = Array.isArray(moviesData) 
+      ? moviesData.map(transformMediaItem).filter(Boolean) 
+      : [];
+    const series = Array.isArray(seriesData) 
+      ? seriesData.map(transformMediaItem).filter(Boolean) 
+      : [];
+    
+    return { movies, series };
   } catch (error) {
     console.error("Failed to fetch hot movies/series:", error);
-    return [];
+    return { movies: [], series: [] };
   }
 }
 
@@ -243,8 +337,15 @@ export async function getPopularSearches(): Promise<string[]> {
   try {
     const res = await fetch(`${BASE_URL}/popular-searches?apikey=${API_KEY}`);
     const data = await res.json();
-    const searches = data.data || data.searches || data || [];
-    return searches.map((item: any) => item.keyword || item.query || item.name || item);
+    
+    // API returns data.everyoneSearch as array of objects with title
+    const everyoneSearch = data.data?.everyoneSearch || [];
+    
+    if (!Array.isArray(everyoneSearch)) {
+      return [];
+    }
+    
+    return everyoneSearch.map((item: any) => item.title || item.keyword || item.query || item.name || "").filter(Boolean);
   } catch (error) {
     console.error("Failed to fetch popular searches:", error);
     return [];
@@ -255,41 +356,40 @@ function parseDownloadLinks(definitions: any[]): DownloadLink[] {
   if (!Array.isArray(definitions)) return [];
   
   return definitions.map((def: any) => ({
-    quality: def.quality || def.code || def.definition || "720p",
+    quality: def.quality || def.code || def.definition || def.name || "720p",
     size: def.size || def.fileSize || "Unknown",
     url: def.url || def.downloadUrl || def.link || "",
   })).filter(link => link.url);
 }
 
 function getStreamingServices(title: string): StreamingService[] {
-  // Generate potential streaming links based on title
   const encodedTitle = encodeURIComponent(title);
   
   return [
     {
       name: "Crunchyroll",
       url: `https://www.crunchyroll.com/search?q=${encodedTitle}`,
-      logo: "https://www.crunchyroll.com/favicons/favicon-32x32.png",
+      logo: "/streaming/crunchyroll.svg",
     },
     {
       name: "Netflix",
       url: `https://www.netflix.com/search?q=${encodedTitle}`,
-      logo: "https://assets.nflxext.com/us/ffe/siteui/common/icons/nficon2016.ico",
+      logo: "/streaming/netflix.svg",
     },
     {
       name: "HiDive",
       url: `https://www.hidive.com/search?q=${encodedTitle}`,
-      logo: "https://www.hidive.com/favicon.ico",
+      logo: "/streaming/hidive.svg",
     },
     {
       name: "Amazon Prime",
       url: `https://www.amazon.com/s?k=${encodedTitle}&i=instant-video`,
-      logo: "https://www.amazon.com/favicon.ico",
+      logo: "/streaming/prime.svg",
     },
     {
       name: "Hulu",
       url: `https://www.hulu.com/search?q=${encodedTitle}`,
-      logo: "https://www.hulu.com/favicon.ico",
+      logo: "/streaming/hulu.svg",
     },
   ];
 }

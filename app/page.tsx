@@ -4,7 +4,7 @@ import useSWR from "swr";
 import { getHomepage, getTrending, getHotMoviesSeries, getPopularSearches } from "@/lib/api";
 import { HeroBanner } from "@/components/hero-banner";
 import { MediaCarousel } from "@/components/media-carousel";
-import { Search, TrendingUp, Flame, Sparkles } from "lucide-react";
+import { Search, TrendingUp, Flame, Film, Tv, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -15,13 +15,13 @@ export default function HomePage() {
     { revalidateOnFocus: false }
   );
 
-  const { data: trending } = useSWR(
+  const { data: trending, isLoading: trendingLoading } = useSWR(
     "trending",
     () => getTrending("all", 1),
     { revalidateOnFocus: false }
   );
 
-  const { data: hotMovies } = useSWR(
+  const { data: hotContent, isLoading: hotLoading } = useSWR(
     "hot-movies",
     getHotMoviesSeries,
     { revalidateOnFocus: false }
@@ -33,21 +33,22 @@ export default function HomePage() {
     { revalidateOnFocus: false }
   );
 
-  // Combine all available items for the hero
+  const isLoading = homepageLoading || trendingLoading || hotLoading;
+
+  // Get hero items from banners or trending
   const heroItems = [
-    ...(homepage?.featured || []),
-    ...(trending?.slice(0, 3) || []),
-    ...(hotMovies?.slice(0, 2) || []),
+    ...(homepage?.banners?.map(b => b.subject).filter(Boolean) || []),
+    ...(trending?.slice(0, 5) || []),
   ].slice(0, 5);
 
-  const trendingItems = trending || homepage?.trending || [];
-  const newReleases = homepage?.newReleases || [];
-  const topRated = homepage?.topRated || [];
+  const trendingItems = trending || [];
+  const hotMovies = hotContent?.movies || [];
+  const hotSeries = hotContent?.series || [];
 
   return (
     <div className="min-h-screen">
       {/* Hero Banner */}
-      <HeroBanner items={heroItems} />
+      <HeroBanner items={heroItems} isLoading={isLoading && heroItems.length === 0} />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 space-y-12">
@@ -71,7 +72,7 @@ export default function HomePage() {
         )}
 
         {/* Loading State */}
-        {homepageLoading && (
+        {isLoading && trendingItems.length === 0 && hotMovies.length === 0 && (
           <div className="space-y-8">
             {[1, 2, 3].map((i) => (
               <div key={i} className="space-y-4">
@@ -102,45 +103,57 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Hot Movies & Series */}
-        {hotMovies && hotMovies.length > 0 && (
+        {/* Hot Movies */}
+        {hotMovies.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Flame className="w-5 h-5 text-accent" />
+              <Film className="w-5 h-5 text-accent" />
               <span className="text-xs font-medium text-accent uppercase tracking-wider">
-                Fan Favorites
+                Must Watch
               </span>
             </div>
-            <MediaCarousel title="Hot Movies & Series" items={hotMovies} size="lg" />
+            <MediaCarousel title="Hot Movies" items={hotMovies} size="lg" />
           </div>
         )}
 
-        {/* New Releases */}
-        {newReleases.length > 0 && (
+        {/* Hot Series */}
+        {hotSeries.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Tv className="w-5 h-5 text-primary" />
+              <span className="text-xs font-medium text-primary uppercase tracking-wider">
+                Binge-Worthy
+              </span>
+            </div>
+            <MediaCarousel title="Hot Series" items={hotSeries} size="lg" />
+          </div>
+        )}
+
+        {/* More Trending */}
+        {trendingItems.length > 8 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-yellow-400" />
               <span className="text-xs font-medium text-yellow-400 uppercase tracking-wider">
-                Fresh Arrivals
+                Discover More
               </span>
             </div>
-            <MediaCarousel title="New Releases" items={newReleases} size="md" />
+            <MediaCarousel
+              title="More to Explore"
+              items={trendingItems.slice(8)}
+              size="sm"
+            />
           </div>
         )}
 
-        {/* Top Rated */}
-        {topRated.length > 0 && (
-          <MediaCarousel title="Top Rated" items={topRated} size="md" />
-        )}
-
-        {/* Additional Trending */}
-        {trending && trending.length > 10 && (
-          <MediaCarousel
-            title="More to Explore"
-            items={trending.slice(10)}
-            size="sm"
-          />
-        )}
+        {/* Browse All CTA */}
+        <section className="text-center py-8">
+          <Link href="/browse">
+            <Button size="lg" className="px-8">
+              Browse All Content
+            </Button>
+          </Link>
+        </section>
       </div>
 
       {/* Footer */}
@@ -150,7 +163,7 @@ export default function HomePage() {
             <div className="text-center sm:text-left">
               <h3 className="font-bold text-lg">CineMind</h3>
               <p className="text-sm text-muted-foreground">
-                Your ultimate destination for anime, movies & series
+                Your ultimate destination for anime, movies &amp; series
               </p>
             </div>
             <div className="flex gap-4 text-sm text-muted-foreground">
