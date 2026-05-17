@@ -120,11 +120,12 @@ export function Header() {
             {/* Soccer Button */}
             <Link href="/soccer">
               <button className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg hover:shadow-green-500/25">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2"/>
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-.52.07-1.04.07-1.56.02l-.31-2.65 2.43-.28.44 2.91zm3.57-1.49l-1.88-1.88 1.77-1.77 1.88 1.88c-.5.67-1.1 1.26-1.77 1.77zm2.36-3.88l-2.65-.31.28-2.43 2.91.44c-.07.77-.23 1.53-.54 2.3zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.93-5c-.07-.52-.17-1.04-.32-1.54l-2.65.31-.28-2.43 2.91-.44c.24.67.41 1.37.5 2.1h-.16zm-1.49-3.57c-.5-.67-1.1-1.26-1.77-1.77l-1.88 1.88-1.77-1.77 1.88-1.88c.67.5 1.26 1.1 1.77 1.77l1.77 1.77zm-5.51-3.29l.31 2.65-2.43.28-.44-2.91c.52-.07 1.04-.07 1.56-.02h1zm-3.5 1.42l1.88 1.88-1.77 1.77-1.88-1.88c.5-.67 1.1-1.27 1.77-1.77zm-4.07 2.37l2.65.31-.28 2.43-2.91-.44c.07-.77.23-1.53.54-2.3zM4.07 13c.07.52.17 1.04.32 1.54l2.65-.31.28 2.43-2.91.44c-.24-.67-.41-1.37-.5-2.1h.16zm1.49 3.57c.5.67 1.1 1.26 1.77 1.77l1.88-1.88 1.77 1.77-1.88 1.88c-.67-.5-1.26-1.1-1.77-1.77l-1.77-1.77z"/>
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 2l1.5 4.5L17 5l-1 4 4 1-4.5 1.5L17 15l-4-1-1 4.5L10.5 15 7 17l1-4-4.5-1.5L7 10l-1-4 4.5 1.5L12 2z" fill="white" stroke="none" />
+                  <circle cx="12" cy="12" r="3" fill="white" />
                 </svg>
-                <span className="hidden sm:inline">Live Soccer</span>
+                <span className="hidden sm:inline">Soccer</span>
               </button>
             </Link>
 
