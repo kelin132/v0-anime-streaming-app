@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { getHomepage, getTrending, getHotMoviesSeries, getPopularSearches } from "@/lib/api";
 import { HeroBanner } from "@/components/hero-banner";
 import { MediaCarousel } from "@/components/media-carousel";
+import { SoccerLiveScores } from "@/components/soccer-live-scores";
 import { Search, TrendingUp, Flame, Film, Tv, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,9 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* Hero Banner */}
       <HeroBanner items={heroItems} isLoading={isLoading && heroItems.length === 0} />
+
+      {/* Live Soccer Scores */}
+      <SoccerLiveScores />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 space-y-12">
