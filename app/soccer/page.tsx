@@ -126,19 +126,33 @@ export default function SoccerPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [selectedDay, setSelectedDay] = useState<"yesterday" | "today" | "tomorrow">("today");
 
-  const fetchLeagueMatches = async (leagueId: string) => {
+  const getDateString = (day: "yesterday" | "today" | "tomorrow") => {
+    const date = new Date();
+    if (day === "yesterday") date.setDate(date.getDate() - 1);
+    if (day === "tomorrow") date.setDate(date.getDate() + 1);
+    return date.toISOString().split("T")[0];
+  };
+
+  const fetchLeagueMatches = async (leagueId: string, day: "yesterday" | "today" | "tomorrow") => {
     setIsLoading(true);
     try {
-      // Fetch today's events for the league
-      const today = new Date().toISOString().split("T")[0];
+      const dateStr = getDateString(day);
       const res = await fetch(
-        `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${today}&l=${leagueId}`
+        `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${dateStr}&l=${leagueId}`
       );
       const data = await res.json();
       
       if (data.events && Array.isArray(data.events)) {
-        setMatches(data.events);
+        // Sort: live first, then upcoming, then finished
+        const sorted = data.events.sort((a: Match, b: Match) => {
+          const statusA = getMatchStatus(a);
+          const statusB = getMatchStatus(b);
+          const order = { live: 0, upcoming: 1, finished: 2 };
+          return order[statusA] - order[statusB];
+        });
+        setMatches(sorted);
       } else {
         setMatches([]);
       }
@@ -153,23 +167,30 @@ export default function SoccerPage() {
 
   const handleLeagueSelect = (league: League) => {
     setSelectedLeague(league);
-    fetchLeagueMatches(league.id);
+    fetchLeagueMatches(league.id, selectedDay);
+  };
+
+  const handleDayChange = (day: "yesterday" | "today" | "tomorrow") => {
+    setSelectedDay(day);
+    if (selectedLeague) {
+      fetchLeagueMatches(selectedLeague.id, day);
+    }
   };
 
   const handleRefresh = () => {
     if (selectedLeague) {
-      fetchLeagueMatches(selectedLeague.id);
+      fetchLeagueMatches(selectedLeague.id, selectedDay);
     }
   };
 
-  const getMatchStatus = (match: Match) => {
+  const getMatchStatus = (match: Match): "live" | "upcoming" | "finished" => {
     const status = match.strStatus?.toLowerCase() || "";
     const progress = match.strProgress?.toLowerCase() || "";
     
-    if (status.includes("live") || progress.includes("live") || status.includes("in progress")) {
+    if (status.includes("live") || progress.includes("live") || status.includes("in progress") || status.match(/^\d+['′]?$/)) {
       return "live";
     }
-    if (status.includes("ft") || status.includes("finished") || status.includes("ended") || match.intHomeScore !== null) {
+    if (status.includes("ft") || status.includes("finished") || status.includes("ended") || (match.intHomeScore !== null && match.intAwayScore !== null)) {
       return "finished";
     }
     return "upcoming";
@@ -323,6 +344,23 @@ export default function SoccerPage() {
               </div>
             </div>
 
+            {/* Day Selector */}
+            <div className="flex items-center gap-2 p-1 bg-secondary/50 rounded-lg w-fit">
+              {(["yesterday", "today", "tomorrow"] as const).map((day) => (
+                <button
+                  key={day}
+                  onClick={() => handleDayChange(day)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all capitalize ${
+                    selectedDay === day
+                      ? "bg-green-600 text-white shadow-md"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
+
             {/* Matches */}
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
@@ -360,26 +398,32 @@ function LeagueCard({
   return (
     <button
       onClick={onSelect}
-      className={`group relative overflow-hidden rounded-xl bg-gradient-to-br ${league.gradient} p-[1px] transition-all hover:scale-105 hover:shadow-xl`}
+      className="group relative overflow-hidden rounded-xl aspect-square transition-all hover:scale-105 hover:shadow-xl"
     >
-      <div className="relative h-full bg-card/95 backdrop-blur rounded-xl p-4 flex flex-col items-center gap-3">
-        <div className="w-16 h-16 relative">
+      {/* Gradient Background */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${league.gradient}`} />
+      
+      {/* League Logo as Main Focus */}
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="relative w-full h-full max-w-[80px] max-h-[80px]">
           <Image
             src={league.logo}
             alt={league.name}
             fill
-            className="object-contain"
-            sizes="64px"
+            className="object-contain drop-shadow-lg"
+            sizes="80px"
           />
         </div>
-        <div className="text-center">
-          <h3 className="font-semibold text-sm line-clamp-1">{league.name}</h3>
-          <p className="text-xs text-muted-foreground">{league.country}</p>
-        </div>
-        <div
-          className={`absolute inset-0 bg-gradient-to-br ${league.gradient} opacity-0 group-hover:opacity-10 transition-opacity`}
-        />
       </div>
+      
+      {/* Bottom Label */}
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+        <h3 className="font-semibold text-sm text-white line-clamp-1">{league.name}</h3>
+        <p className="text-xs text-white/70">{league.country}</p>
+      </div>
+      
+      {/* Hover Overlay */}
+      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
     </button>
   );
 }
