@@ -178,13 +178,10 @@ export function EpisodeSelector({
           </button>
 
           {selectedEpisodes.size > 0 && (
-            <button
-              onClick={handleBulkDownload}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium text-sm hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/25"
-            >
+            <Button onClick={handleBulkDownload} className="gap-2">
               <Download className="w-4 h-4" />
               Download {selectedEpisodes.size} Selected
-            </button>
+            </Button>
           )}
         </div>
       </div>

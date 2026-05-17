@@ -11,15 +11,9 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Xinverse - Stream & Download Anime, Movies & Series',
-  description: 'Xinverse - Your ultimate destination for streaming and downloading anime, movies, and TV series. Watch trailers, browse by genre, and download with subtitles.',
+  description: 'Browse anime, movies and series. View trailers, synopses, filter by genre/year, and find where to watch on streaming services like Crunchyroll, Netflix, and HiDive.',
   generator: 'v0.app',
-  keywords: ['xinverse', 'anime', 'movies', 'series', 'streaming', 'download', 'subtitles', 'free movies'],
-  openGraph: {
-    title: 'Xinverse - Stream & Download Anime, Movies & Series',
-    description: 'Your ultimate destination for streaming and downloading anime, movies, and TV series with subtitles.',
-    siteName: 'Xinverse',
-    type: 'website',
-  },
+  keywords: ['anime', 'movies', 'series', 'streaming', 'download', 'crunchyroll', 'netflix', 'hidive'],
 }
 
 export const viewport: Viewport = {
@@ -37,7 +31,7 @@ export default function RootLayout({
     <html lang="en" className="dark bg-background">
       <body className={`${inter.variable} font-sans antialiased min-h-screen`}>
         <Header />
-        <main className="pt-14">
+        <main className="pt-16">
           {children}
         </main>
         {process.env.NODE_ENV === 'production' && <Analytics />}

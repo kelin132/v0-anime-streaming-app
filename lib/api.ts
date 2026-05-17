@@ -234,20 +234,15 @@ export async function searchMedia(
     );
     const data = await res.json();
     
-    // API returns data.items for search results
-    const itemsList = data.data?.items || data.data?.subjectList || [];
-    const pager = data.data?.pager || {};
-    
-    const items = Array.isArray(itemsList) 
-      ? itemsList.map(transformMediaItem).filter(Boolean)
+    // API returns data.subjectList for search results
+    const subjectList = data.data?.subjectList || data.data || [];
+    const items = Array.isArray(subjectList) 
+      ? subjectList.map(transformMediaItem).filter(Boolean)
       : [];
-    
-    const totalCount = pager.totalCount || items.length;
-    const totalPages = Math.ceil(totalCount / perPage);
     
     return {
       items,
-      totalPages,
+      totalPages: data.totalPages || data.data?.totalPages || Math.ceil((data.total || items.length) / perPage),
       currentPage: page,
     };
   } catch (error) {

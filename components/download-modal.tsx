@@ -360,12 +360,9 @@ export function DownloadModal({
           </div>
 
           {/* Download Button */}
-          <button
-            className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-full font-medium text-white transition-all shadow-lg ${
-              !selectedQuality || isLoading || (isBulkDownload && selectedEpisodes.size === 0)
-                ? "bg-gray-500 cursor-not-allowed opacity-50"
-                : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-emerald-500/25 hover:shadow-emerald-500/40"
-            }`}
+          <Button
+            className="w-full gap-2"
+            size="lg"
             disabled={
               !selectedQuality ||
               isLoading ||
@@ -381,7 +378,7 @@ export function DownloadModal({
             {isBulkDownload
               ? `Download ${selectedEpisodes.size} Episode${selectedEpisodes.size !== 1 ? "s" : ""}`
               : "Download Now"}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
