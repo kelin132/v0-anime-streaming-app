@@ -16,7 +16,6 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useUserStore } from "@/lib/store";
 
 export function Header() {
@@ -45,9 +44,10 @@ export function Header() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16 gap-4">
+        {/* Main Header Row */}
+        <div className="flex items-center justify-between h-14 gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <div className="w-9 h-9 rounded-lg overflow-hidden relative bg-primary">
@@ -65,37 +65,37 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href}>
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <link.icon className="w-4 h-4" />
-                  {link.label}
-                </Button>
-              </Link>
-            ))}
-          </nav>
-
-          {/* Search Bar - Desktop */}
+          {/* Search Bar - Prominent Center Position */}
           <form
             onSubmit={handleSearch}
-            className="hidden md:flex flex-1 max-w-md"
+            className="hidden sm:flex flex-1 max-w-xl"
           >
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
+              <input
                 type="search"
-                placeholder="Search anime, movies, series..."
+                placeholder="Search movies, series, anime..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-secondary border-0"
+                className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
               />
             </div>
           </form>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-1">
+              {navLinks.map((link) => (
+                <Link key={link.href} href={link.href}>
+                  <Button variant="ghost" size="sm" className="gap-1.5 text-sm">
+                    <link.icon className="w-4 h-4" />
+                    <span className="hidden lg:inline">{link.label}</span>
+                  </Button>
+                </Link>
+              ))}
+            </nav>
+
             <Link href="/watchlist">
               <Button variant="ghost" size="icon" className="relative">
                 <Heart className="w-5 h-5" />
@@ -119,6 +119,14 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
+              className="sm:hidden"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              <Search className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               className="md:hidden"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
@@ -139,12 +147,12 @@ export function Header() {
             <form onSubmit={handleSearch}>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <input
                   type="search"
-                  placeholder="Search..."
+                  placeholder="Search movies, series, anime..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-secondary border-0"
+                  className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </form>
