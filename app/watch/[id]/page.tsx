@@ -432,15 +432,13 @@ function WatchContent({ params }: WatchPageProps) {
                   </a>
                 )}
 
-                <Button
-                  size="lg"
-                  variant="secondary"
-                  className="gap-2"
+                <button
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium text-sm hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
                   onClick={() => setDownloadModalOpen(true)}
                 >
                   <Download className="w-5 h-5" />
                   Download
-                </Button>
+                </button>
 
                 <Button
                   size="lg"
