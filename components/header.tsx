@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -21,22 +21,8 @@ import { useUserStore } from "@/lib/store";
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSoccerTooltip, setShowSoccerTooltip] = useState(false);
   const router = useRouter();
   const { watchlist, downloadQueue } = useUserStore();
-
-  // Show soccer tooltip for first-time visitors
-  useEffect(() => {
-    const hasSeenSoccerTooltip = localStorage.getItem("xinverse_soccer_tooltip_seen");
-    if (!hasSeenSoccerTooltip) {
-      setShowSoccerTooltip(true);
-    }
-  }, []);
-
-  const dismissSoccerTooltip = () => {
-    setShowSoccerTooltip(false);
-    localStorage.setItem("xinverse_soccer_tooltip_seen", "true");
-  };
 
   const handleSearch = useCallback(
     (e: React.FormEvent) => {
@@ -84,15 +70,24 @@ export function Header() {
             onSubmit={handleSearch}
             className="hidden sm:flex flex-1 max-w-xl"
           >
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="search"
-                placeholder="Search movies, series, anime..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
+            <div className="relative w-full flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="search"
+                  placeholder="Search movies, series, anime..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-5 h-10 rounded-full bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                <Search className="w-4 h-4" />
+                Search
+              </button>
             </div>
           </form>
 
@@ -132,46 +127,20 @@ export function Header() {
             </Link>
 
             {/* Soccer Button */}
-            <div className="relative">
-              <Link href="/soccer" onClick={dismissSoccerTooltip}>
-                <button className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg hover:shadow-green-500/25 overflow-hidden">
-                  <div className="w-6 h-6 relative rounded-full overflow-hidden">
-                    <Image
-                      src="/soccer-ball.jpg"
-                      alt="Soccer"
-                      fill
-                      className="object-cover"
-                      sizes="24px"
-                    />
-                  </div>
-                  <span className="hidden sm:inline pr-1">Soccer</span>
-                </button>
-              </Link>
-              
-              {/* Tooltip for first-time visitors */}
-              {showSoccerTooltip && (
-                <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-card border border-border rounded-lg shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <button 
-                    onClick={dismissSoccerTooltip}
-                    className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                  <div className="flex items-start gap-2">
-                    <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                      <div className="w-5 h-5 relative">
-                        <Image src="/soccer-ball.jpg" alt="" fill className="object-cover rounded-full" sizes="20px" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Live Soccer Scores</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Check out live scores and upcoming matches from all major leagues!</p>
-                    </div>
-                  </div>
-                  <div className="absolute -top-2 right-6 w-4 h-4 bg-card border-l border-t border-border rotate-45" />
+            <Link href="/soccer">
+              <button className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg hover:shadow-green-500/25">
+                <div className="w-5 h-5 relative rounded-full overflow-hidden">
+                  <Image
+                    src="/soccer-ball.jpg"
+                    alt="Soccer"
+                    fill
+                    className="object-cover"
+                    sizes="20px"
+                  />
                 </div>
-              )}
-            </div>
+                <span className="hidden sm:inline">Soccer</span>
+              </button>
+            </Link>
 
             <Button
               variant="ghost"
@@ -202,15 +171,23 @@ export function Header() {
         <div className="md:hidden border-t border-border bg-background">
           <div className="container mx-auto px-4 py-4 space-y-4">
             <form onSubmit={handleSearch}>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="search"
-                  placeholder="Search movies, series, anime..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+              <div className="relative flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="search"
+                    placeholder="Search movies, series, anime..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-4 h-10 rounded-full bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
+                >
+                  Search
+                </button>
               </div>
             </form>
             <nav className="flex flex-col gap-1">
@@ -229,6 +206,23 @@ export function Header() {
                   </Button>
                 </Link>
               ))}
+              <Link href="/soccer" onClick={() => setIsMenuOpen(false)}>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2 text-green-500"
+                >
+                  <div className="w-4 h-4 relative rounded-full overflow-hidden">
+                    <Image
+                      src="/soccer-ball.jpg"
+                      alt="Soccer"
+                      fill
+                      className="object-cover"
+                      sizes="16px"
+                    />
+                  </div>
+                  Live Soccer
+                </Button>
+              </Link>
             </nav>
           </div>
         </div>

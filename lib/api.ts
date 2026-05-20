@@ -505,3 +505,52 @@ function getStreamingServices(title: string): StreamingService[] {
     },
   ];
 }
+
+// Subtitle Search
+export interface SubtitleResult {
+  id: string;
+  language: string;
+  languageName: string;
+  downloadUrl: string;
+  format: string;
+  rating: number;
+}
+
+export async function searchSubtitles(
+  title: string,
+  year?: string,
+  season?: number,
+  episode?: number
+): Promise<SubtitleResult[]> {
+  try {
+    const searchQuery = encodeURIComponent(title);
+    let url = `https://rest.opensubtitles.org/search/query-${searchQuery}`;
+    
+    if (season && episode) {
+      url += `/season-${season}/episode-${episode}`;
+    }
+    
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Xinverse v1.0",
+      },
+    });
+    
+    if (!res.ok) return [];
+    
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    
+    return data.slice(0, 10).map((sub: any) => ({
+      id: sub.IDSubtitleFile || "",
+      language: sub.ISO639 || "en",
+      languageName: sub.LanguageName || "English",
+      downloadUrl: sub.SubDownloadLink || "",
+      format: sub.SubFormat || "srt",
+      rating: parseFloat(sub.SubRating) || 0,
+    }));
+  } catch (error) {
+    console.error("Failed to search subtitles:", error);
+    return [];
+  }
+}
