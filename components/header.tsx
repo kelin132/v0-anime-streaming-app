@@ -70,15 +70,24 @@ export function Header() {
             onSubmit={handleSearch}
             className="hidden sm:flex flex-1 max-w-xl"
           >
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="search"
-                placeholder="Search movies, series, anime..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              />
+            <div className="relative w-full flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="search"
+                  placeholder="Search movies, series, anime..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-5 h-10 rounded-full bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                <Search className="w-4 h-4" />
+                Search
+              </button>
             </div>
           </form>
 
@@ -116,6 +125,23 @@ export function Header() {
                 )}
               </Button>
             </Link>
+
+            {/* Soccer Button */}
+            <Link href="/soccer">
+              <button className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg hover:shadow-green-500/25">
+                <div className="w-5 h-5 relative rounded-full overflow-hidden">
+                  <Image
+                    src="/soccer-ball.jpg"
+                    alt="Soccer"
+                    fill
+                    className="object-cover"
+                    sizes="20px"
+                  />
+                </div>
+                <span className="hidden sm:inline">Soccer</span>
+              </button>
+            </Link>
+
             <Button
               variant="ghost"
               size="icon"
@@ -145,15 +171,23 @@ export function Header() {
         <div className="md:hidden border-t border-border bg-background">
           <div className="container mx-auto px-4 py-4 space-y-4">
             <form onSubmit={handleSearch}>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="search"
-                  placeholder="Search movies, series, anime..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+              <div className="relative flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="search"
+                    placeholder="Search movies, series, anime..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-10 pl-10 pr-4 rounded-full bg-secondary/80 border border-border/50 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-4 h-10 rounded-full bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
+                >
+                  Search
+                </button>
               </div>
             </form>
             <nav className="flex flex-col gap-1">
@@ -172,6 +206,23 @@ export function Header() {
                   </Button>
                 </Link>
               ))}
+              <Link href="/soccer" onClick={() => setIsMenuOpen(false)}>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start gap-2 text-green-500"
+                >
+                  <div className="w-4 h-4 relative rounded-full overflow-hidden">
+                    <Image
+                      src="/soccer-ball.jpg"
+                      alt="Soccer"
+                      fill
+                      className="object-cover"
+                      sizes="16px"
+                    />
+                  </div>
+                  Live Soccer
+                </Button>
+              </Link>
             </nav>
           </div>
         </div>
