@@ -1,5 +1,7 @@
-const API_KEY = "Godszeal";
-const BASE_URL = "https://api.cinemind.name.ng/api";
+// The real API key lives server-side. Client requests go through our own
+// /api/cinemind proxy route, which injects the key and avoids CORS issues.
+const API_KEY = "client";
+const BASE_URL = "/api/cinemind";
 
 // Fetch with caching
 const fetchWithCache = async (url: string, cacheTime = 300000) => {
