@@ -119,6 +119,8 @@ function WatchContent({ params }: WatchPageProps) {
         setSelectedSeason(targetSeason);
         setSelectedEpisode(targetEpisode);
         setIsWatching(true);
+      } else if (mediaData.error) {
+        alert(`This title isn't available to stream: ${mediaData.error}.`);
       } else {
         alert("No streaming sources available. Try downloading instead.");
       }
