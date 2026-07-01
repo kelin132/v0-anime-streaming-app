@@ -1,4 +1,4 @@
-const API_KEY = "Godszeal";
+const API_KEY = process.env.NEXT_PUBLIC_CINEMIND_API_KEY || "Godszeal";
 const BASE_URL = "https://api.cinemind.name.ng/api";
 
 // Fetch with caching
