@@ -1,5 +1,10 @@
-const API_KEY = "Godszeal";
-const BASE_URL = "https://api.cinemind.name.ng/api";
+// The API moved from api.cinemind.name.ng to zstlab.cyou and now requires a
+// registered API key. Register at https://zstlab.cyou/auth/register to get one,
+// then set it as NEXT_PUBLIC_CINEMIND_API_KEY. These are NEXT_PUBLIC_ because
+// the fetch functions run in the browser from client components.
+const API_KEY = process.env.NEXT_PUBLIC_CINEMIND_API_KEY || "Godszeal";
+const BASE_URL =
+  process.env.NEXT_PUBLIC_CINEMIND_API_URL || "https://zstlab.cyou/api";
 
 // Fetch with caching
 const fetchWithCache = async (url: string, cacheTime = 300000) => {
