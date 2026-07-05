@@ -60,8 +60,8 @@ export function Header() {
                 sizes="36px"
               />
             </div>
-            <span className="font-bold text-xl hidden sm:block bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Xinverse
+            <span className="font-bold text-xl hidden sm:block tracking-tight text-foreground">
+              Xin<span className="text-primary">verse</span>
             </span>
           </Link>
 
