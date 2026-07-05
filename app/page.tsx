@@ -33,6 +33,8 @@ export default function HomePage() {
     { revalidateOnFocus: false }
   );
 
+  const { mutate } = useSWRConfig();
+
   const isLoading = homepageLoading || trendingLoading || hotLoading;
 
   // Get hero items from banners or trending
@@ -44,6 +46,20 @@ export default function HomePage() {
   const trendingItems = trending || [];
   const hotMovies = hotContent?.movies || [];
   const hotSeries = hotContent?.series || [];
+
+  // The API helpers swallow errors into empty arrays, so SWR never surfaces an
+  // error. Detect the "loaded but everything is empty" case (upstream down) and
+  // show a graceful retry state instead of a blank page.
+  const hasContent =
+    trendingItems.length > 0 || hotMovies.length > 0 || hotSeries.length > 0;
+  const showUnavailable = !isLoading && !hasContent;
+
+  const handleRetry = () => {
+    mutate("homepage");
+    mutate("trending");
+    mutate("hot-movies");
+    mutate("popular-searches");
+  };
 
   return (
     <div className="min-h-screen">
@@ -87,6 +103,26 @@ export default function HomePage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Content Unavailable State */}
+        {showUnavailable && (
+          <div className="flex flex-col items-center justify-center text-center py-20 gap-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-secondary">
+              <WifiOff className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">Content temporarily unavailable</h2>
+              <p className="text-sm text-muted-foreground max-w-md text-pretty">
+                We couldn&apos;t reach the content service right now. This is usually
+                temporary&nbsp;&mdash; please try again in a moment.
+              </p>
+            </div>
+            <Button onClick={handleRetry} className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </Button>
           </div>
         )}
 
@@ -147,13 +183,15 @@ export default function HomePage() {
         )}
 
         {/* Browse All CTA */}
-        <section className="text-center py-8">
-          <Link href="/browse">
-            <Button size="lg" className="px-8">
-              Browse All Content
-            </Button>
-          </Link>
-        </section>
+        {!showUnavailable && (
+          <section className="text-center py-8">
+            <Link href="/browse">
+              <Button size="lg" className="px-8">
+                Browse All Content
+              </Button>
+            </Link>
+          </section>
+        )}
       </div>
 
       {/* Footer */}
