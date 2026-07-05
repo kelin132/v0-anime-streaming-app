@@ -19,25 +19,53 @@ export async function GET(
 
   const upstreamUrl = `${UPSTREAM_BASE}/${endpoint}?${search.toString()}`;
 
+  // Abort slow upstream calls so a hanging/524 response never freezes the app.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
   try {
     const res = await fetch(upstreamUrl, {
       headers: { Accept: "application/json" },
-      // Cache upstream responses for 5 minutes.
-      next: { revalidate: 300 },
+      signal: controller.signal,
+      // Only cache successful responses (set per-status below); never cache errors.
+      cache: "no-store",
     });
 
-    const contentType = res.headers.get("content-type") || "application/json";
+    const contentType = res.headers.get("content-type") || "";
     const body = await res.text();
+
+    // Upstream sometimes returns non-JSON error pages (e.g. "error code: 524").
+    // Normalize those into a JSON error so the client can handle them cleanly.
+    if (!res.ok || !contentType.includes("application/json")) {
+      return NextResponse.json(
+        {
+          status: false,
+          error: `Upstream returned ${res.status}`,
+          detail: body.slice(0, 200),
+        },
+        { status: res.ok ? 502 : res.status }
+      );
+    }
 
     return new NextResponse(body, {
       status: res.status,
-      headers: { "content-type": contentType },
+      headers: {
+        "content-type": "application/json",
+        // Cache good responses at the CDN for 5 min, serve stale while revalidating.
+        "cache-control": "public, s-maxage=300, stale-while-revalidate=600",
+      },
     });
   } catch (error) {
+    const aborted = error instanceof Error && error.name === "AbortError";
     console.error("[v0] Cinemind proxy error:", error);
     return NextResponse.json(
-      { status: false, error: "Upstream request failed" },
-      { status: 502 }
+      {
+        status: false,
+        error: aborted ? "Upstream request timed out" : "Upstream request failed",
+      },
+      { status: aborted ? 504 : 502 }
     );
+  } finally {
+    clearTimeout(timeout);
   }
 }

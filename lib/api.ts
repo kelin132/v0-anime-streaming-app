@@ -372,6 +372,15 @@ export async function getMediaStreaming(
     const res = await fetch(url);
     const data = await res.json();
     
+    // Proxy normalizes upstream failures (timeout/524/geo-block) into { status: false, error }.
+    if (data?.status === false || (!res.ok && data?.error)) {
+      return {
+        downloads: [],
+        captions: [],
+        error: data.error || "This title is currently unavailable.",
+      };
+    }
+    
     const downloadsNode = data.data?.downloads || {};
     const subtitlesNode = data.data?.subtitles || {};
     

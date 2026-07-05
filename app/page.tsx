@@ -1,10 +1,10 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { getHomepage, getTrending, getHotMoviesSeries, getPopularSearches } from "@/lib/api";
 import { HeroBanner } from "@/components/hero-banner";
 import { MediaCarousel } from "@/components/media-carousel";
-import { Search, TrendingUp, Flame, Film, Tv, Sparkles } from "lucide-react";
+import { Search, TrendingUp, Flame, Film, Tv, Sparkles, WifiOff, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
