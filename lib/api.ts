@@ -74,6 +74,7 @@ export interface Caption {
 export interface MediaData {
   downloads: DownloadLink[];
   captions: Caption[];
+  error?: string;
 }
 
 export interface SeasonInfo {
@@ -371,8 +372,32 @@ export async function getMediaStreaming(
     const res = await fetch(url);
     const data = await res.json();
     
-    const downloadsData = data.data?.downloads?.data?.downloads || [];
-    const captionsData = data.data?.downloads?.data?.captions || data.data?.subtitles?.data?.captions || [];
+    // Proxy normalizes upstream failures (timeout/524/geo-block) into { status: false, error }.
+    if (data?.status === false || (!res.ok && data?.error)) {
+      return {
+        downloads: [],
+        captions: [],
+        error: data.error || "This title is currently unavailable.",
+      };
+    }
+    
+    const downloadsNode = data.data?.downloads || {};
+    const subtitlesNode = data.data?.subtitles || {};
+    
+    // The upstream returns a 403 { code, reason, message } node when the
+    // content is geo-restricted ("invalid region"). Surface that to the UI.
+    const regionError =
+      downloadsNode?.code === 403 || subtitlesNode?.code === 403
+        ? downloadsNode?.message || subtitlesNode?.message || "Not available in this region"
+        : undefined;
+    
+    const downloadsData = downloadsNode?.data?.downloads || [];
+    const captionsData =
+      downloadsNode?.data?.captions || subtitlesNode?.data?.captions || [];
+    
+    if (regionError) {
+      return { downloads: [], captions: [], error: regionError };
+    }
     
     const downloads: DownloadLink[] = downloadsData.map((d: any) => ({
       quality: `${d.resolution}p`,
@@ -408,16 +433,17 @@ function formatFileSize(bytes: number): string {
 
 export async function getRecommendations(id: string, type: number): Promise<MediaItem[]> {
   try {
-    const res = await fetch(`${BASE_URL}/recommendations?apikey=${API_KEY}&id=${id}&type=${type}`);
+    // API requires `subjectId` (not `id`) and returns results under `data.items`.
+    const res = await fetch(`${BASE_URL}/recommendations?apikey=${API_KEY}&subjectId=${id}&type=${type}`);
     const data = await res.json();
     
-    const subjectList = data.data?.subjectList || data.data || [];
+    const list = data.data?.items || data.data?.subjectList || (Array.isArray(data.data) ? data.data : []);
     
-    if (!Array.isArray(subjectList)) {
+    if (!Array.isArray(list)) {
       return [];
     }
     
-    return subjectList.map(transformMediaItem).filter(Boolean);
+    return list.map(transformMediaItem).filter(Boolean);
   } catch (error) {
     console.error("Failed to fetch recommendations:", error);
     return [];
