@@ -1,45 +1,223 @@
 "use client";
 
+import useSWR, { useSWRConfig } from "swr";
+import { getHomepage, getTrending, getHotMoviesSeries, getPopularSearches } from "@/lib/api";
+import { HeroBanner } from "@/components/hero-banner";
+import { MediaCarousel } from "@/components/media-carousel";
+import { Search, TrendingUp, Flame, Film, Tv, Sparkles, WifiOff, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { Clapperboard, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function HomePage() {
+  const { data: homepage, isLoading: homepageLoading } = useSWR(
+    "homepage",
+    getHomepage,
+    { revalidateOnFocus: false }
+  );
+
+  const { data: trending, isLoading: trendingLoading } = useSWR(
+    "trending",
+    () => getTrending("all", 1),
+    { revalidateOnFocus: false }
+  );
+
+  const { data: hotContent, isLoading: hotLoading } = useSWR(
+    "hot-movies",
+    getHotMoviesSeries,
+    { revalidateOnFocus: false }
+  );
+
+  const { data: popularSearches } = useSWR(
+    "popular-searches",
+    getPopularSearches,
+    { revalidateOnFocus: false }
+  );
+
+  const { mutate } = useSWRConfig();
+
+  const isLoading = homepageLoading || trendingLoading || hotLoading;
+
+  // Get hero items from banners or trending
+  const heroItems = [
+    ...(homepage?.banners?.map(b => b.subject).filter(Boolean) || []),
+    ...(trending?.slice(0, 5) || []),
+  ].slice(0, 5);
+
+  const trendingItems = trending || [];
+  const hotMovies = hotContent?.movies || [];
+  const hotSeries = hotContent?.series || [];
+
+  // The API helpers swallow errors into empty arrays, so SWR never surfaces an
+  // error. Detect the "loaded but everything is empty" case (upstream down) and
+  // show a graceful retry state instead of a blank page.
+  const hasContent =
+    trendingItems.length > 0 || hotMovies.length > 0 || hotSeries.length > 0;
+  const showUnavailable = !isLoading && !hasContent;
+
+  const handleRetry = () => {
+    mutate("homepage");
+    mutate("trending");
+    mutate("hot-movies");
+    mutate("popular-searches");
+  };
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-16">
-      <div className="flex flex-col items-center text-center max-w-xl gap-6">
-        <div className="flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20">
-          <Clapperboard className="w-10 h-10 text-primary" />
-        </div>
+    <div className="min-h-screen">
+      {/* Hero Banner */}
+      <HeroBanner items={heroItems} isLoading={isLoading && heroItems.length === 0} />
 
-        <div className="space-y-3">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-balance">
-            Xin<span className="text-primary">verse</span> will be back soon
-          </h1>
-          <p className="text-base text-muted-foreground text-pretty leading-relaxed">
-            We&apos;re making some improvements behind the scenes. Our full catalog of
-            anime, movies &amp; series will be back shortly.
-          </p>
-        </div>
+      {/* Main Content */}
+      <div className="container mx-auto px-4 py-8 space-y-12">
+        {/* Popular Searches */}
+        {popularSearches && popularSearches.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Search className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Popular Searches</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {popularSearches.slice(0, 12).map((term, index) => (
+                <Link key={index} href={`/search?q=${encodeURIComponent(term)}`}>
+                  <Button variant="secondary" size="sm" className="rounded-full">
+                    {term}
+                  </Button>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Heart className="w-4 h-4 text-primary fill-primary" />
-          Thanks for your support
-        </div>
+        {/* Loading State */}
+        {isLoading && trendingItems.length === 0 && hotMovies.length === 0 && (
+          <div className="space-y-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-4">
+                <div className="h-8 w-48 bg-secondary rounded animate-pulse" />
+                <div className="flex gap-4 overflow-hidden">
+                  {[1, 2, 3, 4, 5, 6].map((j) => (
+                    <div
+                      key={j}
+                      className="w-44 aspect-[2/3] bg-secondary rounded-lg shrink-0 animate-pulse"
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-          <Link href="/browse">
-            <Button size="lg" className="px-8">
-              Browse Content
+        {/* Content Unavailable State */}
+        {showUnavailable && (
+          <div className="flex flex-col items-center justify-center text-center py-20 gap-4">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-secondary">
+              <WifiOff className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">Content temporarily unavailable</h2>
+              <p className="text-sm text-muted-foreground max-w-md text-pretty">
+                We couldn&apos;t reach the content service right now. This is usually
+                temporary&nbsp;&mdash; please try again in a moment.
+              </p>
+            </div>
+            <Button onClick={handleRetry} className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Try Again
             </Button>
-          </Link>
-          <Link href="/watchlist">
-            <Button size="lg" variant="secondary" className="px-8">
-              My Watchlist
-            </Button>
-          </Link>
-        </div>
+          </div>
+        )}
+
+        {/* Trending Section */}
+        {trendingItems.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              <span className="text-xs font-medium text-primary uppercase tracking-wider">
+                What&apos;s Hot
+              </span>
+            </div>
+            <MediaCarousel title="Trending Now" items={trendingItems} size="md" />
+          </div>
+        )}
+
+        {/* Hot Movies */}
+        {hotMovies.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Film className="w-5 h-5 text-accent" />
+              <span className="text-xs font-medium text-accent uppercase tracking-wider">
+                Must Watch
+              </span>
+            </div>
+            <MediaCarousel title="Hot Movies" items={hotMovies} size="lg" />
+          </div>
+        )}
+
+        {/* Hot Series */}
+        {hotSeries.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Tv className="w-5 h-5 text-primary" />
+              <span className="text-xs font-medium text-primary uppercase tracking-wider">
+                Binge-Worthy
+              </span>
+            </div>
+            <MediaCarousel title="Hot Series" items={hotSeries} size="lg" />
+          </div>
+        )}
+
+        {/* More Trending */}
+        {trendingItems.length > 8 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-yellow-400" />
+              <span className="text-xs font-medium text-yellow-400 uppercase tracking-wider">
+                Discover More
+              </span>
+            </div>
+            <MediaCarousel
+              title="More to Explore"
+              items={trendingItems.slice(8)}
+              size="sm"
+            />
+          </div>
+        )}
+
+        {/* Browse All CTA */}
+        {!showUnavailable && (
+          <section className="text-center py-8">
+            <Link href="/browse">
+              <Button size="lg" className="px-8">
+                Browse All Content
+              </Button>
+            </Link>
+          </section>
+        )}
       </div>
+
+      {/* Footer */}
+      <footer className="border-t border-border mt-16">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
+              <h3 className="font-bold text-lg">Xinverse</h3>
+              <p className="text-sm text-muted-foreground">
+                Your ultimate destination for anime, movies &amp; series
+              </p>
+            </div>
+            <div className="flex gap-4 text-sm text-muted-foreground">
+              <Link href="/browse" className="hover:text-foreground transition-colors">
+                Browse
+              </Link>
+              <Link href="/watchlist" className="hover:text-foreground transition-colors">
+                Watchlist
+              </Link>
+              <Link href="/downloads" className="hover:text-foreground transition-colors">
+                Downloads
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
